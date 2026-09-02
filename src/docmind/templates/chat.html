@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% set page = 'chat' %}
+
+{% block title %}{{ conversation.document }} — Docmind{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+
+  <aside class="preview">
+    <p class="preview-head">
+      <strong>{{ conversation.document }}</strong>
+      <a class="secondary" target="_blank" rel="noopener"
+         href="{{ url_for('web.download', name=conversation.document) }}">open in a new tab</a>
+    </p>
+    {# The browser does the rendering; /files/<name> serves the original bytes
+       inline, so there is nothing to convert server-side. #}
+    {% if preview == 'document' %}
+    <iframe class="preview-frame" title="Preview of {{ conversation.document }}"
+            src="{{ url_for('web.download', name=conversation.document) }}"></iframe>
+    {% elif preview == 'image' %}
+    <img class="preview-frame" alt="{{ conversation.document }}"
+         src="{{ url_for('web.download', name=conversation.document) }}">
+    {% else %}
+    <div class="preview-frame preview-empty">
+      <p class="hint">No inline preview for this file type.</p>
+    </div>
+    {% endif %}
+  </aside>
+
+  <section class="thread">
+    {% if turns %}
+    <div class="transcript">
+      {% for turn in turns %}
+      <div class="turn {{ turn.role }}">
+        <div class="role">{{ turn.role }}</div>
+        <div class="text">{{ turn.text }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint">Ask something about this document to start.</p>
+    {% endif %}
+
+    <form class="stack" id="message-form" method="post" action="{{ url_for('web.send_message', name=conversation.document) }}">
+      <textarea id="message-box" name="message" rows="3" autofocus required></textarea>
+      <button type="submit">Send</button>
+    </form>
+
+    {# Enter sends, Shift+Enter adds a line. requestSubmit() rather than submit()
+       so the browser still enforces the textarea's required. #}
+    <script>
+      const form = document.getElementById('message-form');
+      document.getElementById('message-box').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    </script>
+
+  </section>
+
+</div>
+{% endblock %}

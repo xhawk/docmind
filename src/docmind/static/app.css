@@ -1,0 +1,380 @@
+/* Docmind — one stylesheet for every page.
+ *
+ * Sections: reset, tokens, layout, typography, forms, documents, chat.
+ * Anything that should look the same on / and /chat/<name> belongs here rather
+ * than in a template, which is the whole point of the file.
+ */
+
+/* ---------------------------------------------------------------- reset --
+ * Small and deliberate: undo the browser defaults that fight a custom
+ * layout, and nothing else.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  /* Honour the OS light/dark preference for form controls and scrollbars. */
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  /* Keep the browser's own font stack -- there is no brand to serve here. */
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+picture,
+video,
+canvas,
+svg,
+iframe {
+  display: block;
+  max-width: 100%;
+}
+
+/* Form controls don't inherit typography by default. */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Long words and URLs shouldn't push the layout sideways. */
+p,
+h1,
+h2,
+h3,
+li,
+td {
+  overflow-wrap: break-word;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+ul,
+ol {
+  padding-inline-start: 1.25rem;
+}
+
+a {
+  color: var(--link);
+}
+
+:target {
+  scroll-margin-block: 2rem;
+}
+
+/* --------------------------------------------------------------- tokens --
+ * Both pages read the same values, so a colour change lands everywhere.
+ */
+
+:root {
+  --bg: #ffffff;
+  --surface: #f6f6f6;
+  --text: #1a1a1a;
+  --muted: #666666;
+  --border: #d4d4d4;
+  --accent: #333333;
+  --link: #0b5fa5;
+  --danger: #b3261e;
+  --danger-bg: #fdf2f1;
+
+  --measure: 42rem;
+  --measure-wide: 72rem;
+  --gap: 1rem;
+  --radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181a;
+    --surface: #21232629;
+    --text: #e8e8e8;
+    --muted: #9a9a9a;
+    --border: #3a3d42;
+    --accent: #c8c8c8;
+    --link: #79b8ff;
+    --danger: #f2b8b5;
+    --danger-bg: #2c1a19;
+  }
+}
+
+/* --------------------------------------------------------------- layout --*/
+
+body {
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding: 2rem 1rem 4rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* The chat page puts the document beside the transcript, so it needs more room
+ * than the reading measure the rest of the app uses. */
+.page-chat {
+  max-width: var(--measure-wide);
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem var(--gap);
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.masthead h1 {
+  font-size: 1.25rem;
+}
+
+.masthead h1 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.masthead nav {
+  display: flex;
+  gap: var(--gap);
+}
+
+.masthead nav a {
+  text-decoration: none;
+}
+
+.masthead nav a:hover {
+  text-decoration: underline;
+}
+
+/* The page you're on: stated for assistive tech, then styled from it. */
+.masthead nav a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+main > * + * {
+  margin-top: var(--gap);
+}
+
+/* ----------------------------------------------------------- typography --*/
+
+h2 {
+  font-size: 1rem;
+  margin-top: 2rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* -------------------------------------------------------------- banners --*/
+
+.banner {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.banner-error {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* ---------------------------------------------------------------- forms --*/
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  resize: vertical;
+}
+
+button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+.button-quiet {
+  background: none;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ documents --*/
+
+.documents {
+  list-style: none;
+  padding: 0;
+}
+
+.documents li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.documents li + li {
+  margin-top: 0.25rem;
+}
+
+/* Download links and the like: present, but not competing with the primary
+ * action on the row. */
+.secondary {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------------- chat --*/
+
+/* Chat is two columns: the file on the left, the conversation on the right. */
+
+.chat-layout {
+  display: grid;
+  /* minmax(0, ...) rather than 1fr: a long unbroken line in the transcript
+   * would otherwise widen its column and squeeze the preview. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* The page scrolls as it always did; the preview just stays put while it does. */
+.preview {
+  position: sticky;
+  top: 1rem;
+}
+
+.preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.preview-frame {
+  width: 100%;
+  /* Tall enough for a page of PDF, but never taller than the viewport. */
+  height: min(80vh, 50rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+img.preview-frame {
+  object-fit: contain;
+}
+
+/* Anything the browser can't render inline keeps the pane's shape, so the
+ * layout doesn't jump between documents. */
+.preview-empty {
+  display: grid;
+  place-items: center;
+  padding: var(--gap);
+}
+
+/* The transcript and the forms used to be direct children of main and took
+ * their spacing from `main > * + *`. Inside .thread they no longer are. */
+.thread > * + * {
+  margin-top: var(--gap);
+}
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.turn {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.turn.user {
+  border-left-color: var(--accent);
+  background: var(--surface);
+}
+
+.role {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+/* Replies arrive with real newlines; keep them. Scoped to the text itself --
+ * pre-wrap on the whole .turn would also render the template's own
+ * indentation as blank lines. */
+.turn .text {
+  white-space: pre-wrap;
+}
+
+/* Too narrow for two columns: stack them, and let the preview scroll away. */
+@media (max-width: 64rem) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .preview {
+    position: static;
+  }
+
+  .preview-frame {
+    height: 60vh;
+  }
+}

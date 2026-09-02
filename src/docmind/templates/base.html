@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Docmind{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+{# `page` is set at the top of each child template: it names the current nav
+   item and gives the stylesheet a hook for per-page layout. #}
+<body class="page-{{ page }}">
+<header class="masthead">
+  <h1><a href="{{ url_for('web.index') }}">Docmind</a></h1>
+  <nav>
+    <a href="{{ url_for('web.index') }}"{% if page == 'documents' %} aria-current="page"{% endif %}>Documents</a>
+  </nav>
+</header>
+
+<main>
+  {% for message in get_flashed_messages() %}
+  <p class="banner banner-error">{{ message }}</p>
+  {% endfor %}
+
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

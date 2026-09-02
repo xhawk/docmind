@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set page = 'documents' %}
+
+{% block title %}Docmind — documents{% endblock %}
+
+{% block content %}
+<p class="muted">Talk with your documents.</p>
+
+<form class="row" method="post" action="{{ url_for('web.upload') }}" enctype="multipart/form-data">
+  <input type="file" name="file" required>
+  <button type="submit">Upload</button>
+</form>
+
+<h2>Uploaded documents</h2>
+{% if documents %}
+<p class="hint">Pick one to ask questions about it.</p>
+<ul class="documents">
+  {% for document in documents %}
+  <li>
+    {% if document.attachable %}
+    <a href="{{ url_for('web.chat_page', name=document.name) }}">{{ document.name }}</a>
+    {% else %}
+    {# Only PDFs and images can go to Claude, so don't offer a chat link
+       that could only refuse. #}
+    <span>{{ document.name }}</span>
+    <span class="secondary">can't chat about this type yet</span>
+    {% endif %}
+    <a class="secondary" href="{{ url_for('web.download', name=document.name) }}">view</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="hint">Nothing uploaded yet.</p>
+{% endif %}
+{% endblock %}
