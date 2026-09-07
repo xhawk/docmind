@@ -28,7 +28,6 @@
   </aside>
 
   <section class="thread">
-    {% if turns %}
     <div class="transcript">
       {% for turn in turns %}
       <div class="turn {{ turn.role }}">
@@ -37,9 +36,6 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}
-    <p class="hint">Ask something about this document to start.</p>
-    {% endif %}
 
     <form class="stack" id="message-form" method="post" action="{{ url_for('web.send_message', name=conversation.document) }}">
       <textarea id="message-box" name="message" rows="3" autofocus required></textarea>
@@ -56,6 +52,51 @@
           form.requestSubmit();
         }
       });
+
+      function makeTurn(role, text) {
+          const turn = document.createElement('div');
+          turn.className = `turn ${role}`;
+
+          const roleEl = document.createElement('div');
+          roleEl.className = 'role';
+          roleEl.textContent = role;
+
+          const textEl = document.createElement('div');
+          textEl.className = 'text';
+          textEl.textContent = text;
+
+          turn.append(roleEl, textEl);
+          return turn;
+        }
+
+      form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+
+          const box = document.getElementById('message-box');
+          const message = box.value.trim();
+          if (!message) return;
+
+          // Snapshot the form before clearing the box.
+          const body = new FormData(form);
+          box.value = '';
+
+          const transcript = document.querySelector('.transcript');
+          transcript.append(makeTurn('user', message));
+
+          const assistant = makeTurn('assistant', '');
+          transcript.append(assistant);
+          const target = assistant.querySelector('.text');
+
+          const response = await fetch(form.action, { method: 'POST', body });
+          const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            target.textContent += value;
+            transcript.scrollTop = transcript.scrollHeight;
+          }
+        });
     </script>
 
   </section>

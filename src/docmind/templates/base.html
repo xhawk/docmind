@@ -17,10 +17,6 @@
 </header>
 
 <main>
-  {% for message in get_flashed_messages() %}
-  <p class="banner banner-error">{{ message }}</p>
-  {% endfor %}
-
   {% block content %}{% endblock %}
 </main>
 </body>

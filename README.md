@@ -43,10 +43,25 @@ If you prefer the Flask CLI — e.g. to bind a different host:
 uv run flask --app docmind:create_app run --debug --host 0.0.0.0 --port 8000
 ```
 
-> **Don't use port 5000 on macOS.** AirPlay Receiver (Control Center) already listens
-> there, so requests to `localhost:5000` get answered by it — you'll see a bare
-> `403 Forbidden` with `Server: AirTunes` instead of reaching Flask. Either keep the
-> 8000 default or turn off System Settings → General → AirDrop & Handoff → AirPlay Receiver.
+### Tests
+
+```sh
+uv run pytest
+```
+
+`uv run` puts the local `.venv` on the path, so there's nothing to activate. Useful variations:
+
+```sh
+uv run pytest -q                              # one line per file instead of per test
+uv run pytest tests/test_chat.py              # a single file
+uv run pytest -k history                      # only tests whose name contains "history"
+uv run pytest -x                              # stop at the first failure
+uv run pytest -s                              # let print() through instead of capturing it
+```
+
+The suite never calls the Claude API — `tests/conftest.py` replaces `docmind.ai`'s
+sending function with a stub, so tests are free and offline. That also means a change to
+that function's shape breaks the fixtures until they're updated to match.
 
 ### Layout
 

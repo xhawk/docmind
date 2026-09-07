@@ -10,8 +10,10 @@ import base64
 import threading
 import time
 from dataclasses import dataclass, asdict
+from collections.abc import Iterator
 
 import anthropic
+from anthropic.types import ContentBlock
 
 MODEL = "claude-sonnet-5"
 
@@ -21,10 +23,8 @@ SYSTEM_PROMPT = (
     "they are present, and say so plainly when the answer isn't in them."
 )
 
-# Non-streaming requests must finish generating within the client timeout, so
-# this stays at the ~16k the SDK docs recommend for `messages.create` rather
-# than the 64k a streaming call could afford.
-MAX_REPLY_TOKENS = 16000
+# default value for reply tokens
+MAX_REPLY_TOKENS = 64000
 
 # What we know how to put in front of Claude. A PDF becomes a `document`
 # block; the picture formats become an `image` block.
@@ -196,7 +196,6 @@ def reset_cache() -> None:
         _cached = None
 
 
-
 @dataclass(frozen=True)
 class Reply:
     """One assistant turn: what to show, and what to send back next time."""
@@ -205,8 +204,8 @@ class Reply:
     # The raw content blocks, including thinking blocks. These go back into
     # `messages` verbatim on the next turn -- Claude needs its own thinking
     # replayed unchanged to continue the same reasoning.
-    blocks: list
-    stop_reason: str | None = None
+    blocks: list[ContentBlock]
+    stop_reason: str | None
     # The response's `usage`, kept so callers can see what the attached
     # document cost and whether the next turn read it from cache.
     usage: object | None = None
@@ -214,6 +213,18 @@ class Reply:
     @property
     def refused(self) -> bool:
         return self.stop_reason == "refusal"
+
+
+@dataclass(frozen=True)
+class Delta:
+    """Some kind of difference"""
+    text: str
+
+
+@dataclass(frozen=True)
+class Done:
+    """Class that we can observe and decide if we are done."""
+    reply: Reply
 
 
 def is_attachable(media_type: str | None) -> bool:
@@ -250,41 +261,38 @@ def attachment_block(name: str, data: bytes, media_type: str | None) -> dict:
     }
 
 
-def user_content(message: str, attachment: dict | None = None) -> str | list[dict]:
+def user_content(message: str, attachment: dict) -> list[dict]:
     """What to put in a user message's `content`.
 
     Plain text when there's nothing attached. With an attachment, the file
     comes *before* the text -- the API docs are explicit that documents and
     images should precede the question about them.
     """
-    if attachment is None:
-        return message
     return [attachment, {"type": "text", "text": message}]
 
 
-def ask(messages: list[dict], *, system: str = SYSTEM_PROMPT) -> Reply:
-    """Send a conversation and wait for the whole reply. Synchronous.
-
-    One plain `POST /v1/messages` -- request in, complete Message out. The
-    reply is fully generated before the call returns, so the whole generation
-    has to fit inside the client timeout (10 minutes by default); that is what
-    MAX_REPLY_TOKENS is sized against.
+def ask(messages: list[dict], *, system: str = SYSTEM_PROMPT) -> Iterator[Delta | Done]:
+    """Send a conversation and stream the response.
     """
-    message = client().messages.create(
+    with client().messages.stream(
         model=MODEL,
         max_tokens=MAX_REPLY_TOKENS,
         system=system,
         messages=messages,
         thinking={"type": "adaptive"},
-    )
+    ) as stream:
+        for text in stream.text_stream:
+            yield Delta(text)
 
-    text = "".join(block.text for block in message.content if block.type == "text")
-    if message.stop_reason == "refusal" and not text:
-        text = "I can't help with that one. Try rephrasing, or ask about something else."
+        message = stream.get_final_message()
 
-    return Reply(
-        text=text,
-        blocks=list(message.content),
-        stop_reason=message.stop_reason,
-        usage=message.usage,
-    )
+        parts = []
+        for block in message.content:
+            if block.type == "text":
+                parts.append(block.text)
+        text = "".join(parts)
+
+        if message.stop_reason == "refusal" and not text:
+            text = "Sorry, I'm unable to answer to that. Please rephrase your question."
+
+        yield Done(Reply(text=text, blocks=list(message.content), usage=message.usage, stop_reason=message.stop_reason))

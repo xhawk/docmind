@@ -1,26 +1,21 @@
 """The HTML surface: server-rendered pages for a person in a browser.
 
-Conventions here, which are deliberately not the API's (see api.py):
-identity comes from the signed session cookie, problems are reported with
-`flash()`, and a successful POST answers with a redirect so the browser
-doesn't resubmit on refresh.
-
 No logic lives in this module -- it reads forms, calls ai/chat/storage, and
 renders. Anything worth testing without a request belongs in those modules.
 """
+from collections.abc import Iterator
 
 import anthropic
 from flask import (
     Blueprint,
     abort,
     current_app,
-    flash,
     redirect,
     render_template,
     request,
     send_from_directory,
     session,
-    url_for,
+    url_for, Response, stream_with_context,
 )
 
 from docmind import ai, chat, storage
@@ -82,28 +77,16 @@ def send_message(name: str):
             attachment = _attachment_for(conversation.document)
         except ValueError as exc:
             # Unsupported type or too big -- nothing sent, no turn recorded.
-            flash(str(exc))
-            return redirect(url_for("web.chat_page", name=name))
-        except FileNotFoundError:
-            flash(f"{conversation.document} is no longer in your uploads.")
-            return redirect(url_for("web.chat_page", name=name))
+            return Response(str(exc), mimetype="text/plain")
+        except FileNotFoundError as exc:
+            return Response("File not found: " + str(exc), mimetype="text/plain")
 
     blocks = ai.user_content(message, attachment) if attachment else None
     conversation.add_user(message, blocks=blocks)
 
-    # Synchronous on purpose: the request holds open until Claude has
-    # finished the whole reply, then the page renders it.
-    try:
-        reply = ai.ask(conversation.as_messages())
-    except anthropic.AnthropicError as exc:
-        # Drop the unanswered question so resending isn't a duplicate turn.
-        conversation.drop_last_user_turn()
-        flash(ai.classify(exc).message)
-    else:
-        conversation.add_assistant(reply.text, reply.blocks)
-        _log_usage(conversation, reply)
-
-    return redirect(url_for("web.chat_page", name=name))
+    delta_or_dones = ai.ask(conversation.as_messages())
+    generator_fun = _conversation_iterator(conversation, delta_or_dones)
+    return Response(stream_with_context(generator_fun), mimetype="text/plain")
 
 
 @bp.post("/chat/new")
@@ -117,6 +100,18 @@ def new_chat():
     session["conversations"] = conversations
     return redirect(url_for("web.chat_page", name=name))
 
+
+def _conversation_iterator(conversation: chat.Conversation, delta_or_dones: Iterator[ai.Delta | ai.Done]) -> Iterator[str]:
+    try:
+        for delta_or_done in delta_or_dones:
+            if isinstance(delta_or_done, ai.Delta):
+                yield delta_or_done.text
+            elif isinstance(delta_or_done, ai.Done):
+                conversation.add_assistant(delta_or_done.reply.text, delta_or_done.reply.blocks)
+                _log_usage(conversation, delta_or_done.reply)
+    except anthropic.AnthropicError as exc:
+        conversation.drop_last_user_turn()
+        yield ai.classify(exc).message
 
 def _conversation_for(name: str) -> chat.Conversation:
     """This session's thread for a document.
